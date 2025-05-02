@@ -1,0 +1,102 @@
+#!/usr/bin/env ruby
+# bin/search
+
+require_relative '../lib/search'
+require 'tty-prompt'
+
+module Search
+  class CLI
+    def self.run
+      new.run
+    end
+
+    def initialize
+      Search::Client.load_data
+      @prompt = TTY::Prompt.new
+    end
+
+    def run
+      loop do
+        puts "\n--- ShiftCare Client Search CLI ---"
+
+        option = @prompt.select('Choose an option:', %w[Search Duplicate Help Exit])
+
+        case option
+        when 'Search'
+          search
+        when 'Duplicate'
+          duplicate
+        when 'Help'
+          help_menu
+        when 'Exit'
+          puts "\nGoodbye!"
+          break
+        end
+      end
+    end
+
+    private
+
+    def search
+      query = @prompt.ask("Enter search query for full name:")
+
+      result = Search::Client.matches?("full_name", query)
+
+      if result.nil?
+        puts "\nNo results found."
+      else
+        puts "\nResult found:"
+        display_record(result)
+      end
+    end
+
+    def duplicate
+      duplicates = Search::Client.duplicate
+
+      if duplicates.empty?
+        puts "\nNo duplicates found for email."
+      else
+        puts "\nDuplicate groups found for email:"
+        duplicates.each do |email, group|
+          puts "\nEmail: #{email} (#{group.size} occurrences)"
+          group.each_with_index do |client, index|
+            puts " - Record ##{index + 1}"
+            display_record(client, indent: 3)
+          end
+        end
+      end
+    end
+
+    def help_menu
+      puts <<~HELP
+
+        --- ShiftCare Client Search CLI Help ---
+
+        This tool allows you to search and analyze the clients dataset (clients.json).
+
+        Options:
+          - Search   : Search clients by full name
+          - Duplicate: Find duplicate records by email
+          - Help     : Show this help menu
+          - Exit     : Quit the application
+
+        Example usage:
+          $ bin/search
+          Choose an option: → Search
+          Enter search query for full name: John Doe
+
+      HELP
+    end
+
+    def display_record(client, indent: 0)
+      prefix = " " * indent
+      client.instance_variables.each do |var|
+        key = var.to_s.delete("@")
+        value = client.instance_variable_get(var)
+        puts "#{prefix}#{key}: #{value}"
+      end
+    end
+  end
+end
+
+Search::CLI.run
